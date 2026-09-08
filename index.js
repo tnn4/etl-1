@@ -61,47 +61,42 @@ async function initDatabaseReader() {
   }
 }
 
-function startUpdateTimer() {
+function startUpdateTimer(intervalMinutes = 30) {
   const timerEl = document.getElementById("countdown-timer");
 
   function updateClock() {
     const now = new Date();
-
-    // Target the next top of the hour
     const nextUpdate = new Date(now);
-    nextUpdate.setHours(now.getHours() + 1);
-    nextUpdate.setMinutes(0);
-    nextUpdate.setSeconds(0);
-    nextUpdate.setMilliseconds(0);
 
-    // Calculate time difference in seconds
+    // Calculate the next boundary based on intervalMinutes
+    const currentMinutes = now.getMinutes();
+    const remainder = currentMinutes % intervalMinutes;
+    const minutesToNext = intervalMinutes - remainder;
+
+    // Set target time to the next interval boundary
+    nextUpdate.setMinutes(currentMinutes + minutesToNext, 0, 0);
+
+    // Calculate remaining seconds
     const diffInSeconds = Math.floor((nextUpdate - now) / 1000);
-
     const minutes = Math.floor(diffInSeconds / 60);
     const seconds = diffInSeconds % 60;
 
-    // Format with leading zeros (e.g., 05:09)
+    // Format display with leading zeros
     const formattedMinutes = String(minutes).padStart(2, "0");
     const formattedSeconds = String(seconds).padStart(2, "0");
 
     timerEl.innerText = `${formattedMinutes}:${formattedSeconds}`;
 
-    // Optional: Trigger a auto-fetch if timer reaches 00:00
+    // Auto-refresh page when timer expires
     if (diffInSeconds <= 0) {
       timerEl.innerText = "Refreshing feed...";
-      setTimeout(() => {
-        location.reload(); // Reload page to fetch updated weather_table.db
-      }, 5000);
+      setTimeout(() => location.reload(), 5000);
     }
   }
 
-  // Run immediately and update every 1 second
   updateClock();
   setInterval(updateClock, 1000);
 }
-
-// Call the timer on initialization
-startUpdateTimer();
 
 // Function to run ad-hoc queries safely
 function enableCustomQueryConsole(db) {

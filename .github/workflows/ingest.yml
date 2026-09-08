@@ -1,10 +1,11 @@
 # Sets the Name: Defines the display title that appears in the GitHub Actions dashboard UI.
-name: Hourly Ingestion Pipeline
+name: Periodi Ingestion Pipeline
 
 on:
   schedule:
     # see standard crontab formatting
-    - cron: "0 * * * *" # Executes every hour on the hour
+    # - cron: "0 * * * *" # Executes every hour on the hour
+    - cron: "0,30 * * * *" # Every half-hour
   workflow_dispatch: # Allow manual trigger from Github UI for testing
 
 # Sets Up the VM Environment: Defines a job named build-and-commit and requests a clean, GitHub-hosted Ubuntu Linux virtual machine.
