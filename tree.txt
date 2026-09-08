@@ -1,0 +1,16 @@
+.
+├── project-structure.txt
+├── public
+│   └── data
+│       └── weather_table.db
+├── pyproject.toml
+├── README.md
+├── scripts
+│   └── weather_etl.py
+├── src
+│   ├── index.html
+│   └── index.js
+├── tree.txt
+└── uv.lock
+
+5 directories, 9 files

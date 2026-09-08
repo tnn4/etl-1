@@ -51,6 +51,8 @@ async function initDatabaseReader() {
     // Clean up statement memory
     stmt.free();
     statusEl.innerText = "Query Execution Complete!";
+
+    enableCustomQueryConsole(db);
   } catch (err) {
     console.error(err);
     statusEl.innerText = `Error: ${err.message}`;
@@ -58,5 +60,95 @@ async function initDatabaseReader() {
   }
 }
 
+function startUpdateTimer() {
+  const timerEl = document.getElementById("countdown-timer");
+
+  function updateClock() {
+    const now = new Date();
+
+    // Target the next top of the hour
+    const nextUpdate = new Date(now);
+    nextUpdate.setHours(now.getHours() + 1);
+    nextUpdate.setMinutes(0);
+    nextUpdate.setSeconds(0);
+    nextUpdate.setMilliseconds(0);
+
+    // Calculate time difference in seconds
+    const diffInSeconds = Math.floor((nextUpdate - now) / 1000);
+
+    const minutes = Math.floor(diffInSeconds / 60);
+    const seconds = diffInSeconds % 60;
+
+    // Format with leading zeros (e.g., 05:09)
+    const formattedMinutes = String(minutes).padStart(2, "0");
+    const formattedSeconds = String(seconds).padStart(2, "0");
+
+    timerEl.innerText = `${formattedMinutes}:${formattedSeconds}`;
+
+    // Optional: Trigger a auto-fetch if timer reaches 00:00
+    if (diffInSeconds <= 0) {
+      timerEl.innerText = "Refreshing feed...";
+      setTimeout(() => {
+        location.reload(); // Reload page to fetch updated weather_table.db
+      }, 5000);
+    }
+  }
+
+  // Run immediately and update every 1 second
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+// Call the timer on initialization
+startUpdateTimer();
+
+// Function to run ad-hoc queries safely
+function enableCustomQueryConsole(db) {
+  const btn = document.getElementById("run-query-btn");
+  const input = document.getElementById("sql-input");
+  const outputContainer = document.getElementById("custom-output-container");
+
+  btn.addEventListener("click", () => {
+    const userQuery = input.value.trim();
+    if (!userQuery) return;
+
+    try {
+      // Execute the user's query against the in-memory database
+      const res = db.exec(userQuery);
+
+      if (res.length === 0) {
+        outputContainer.innerHTML =
+          "<p style='color: #facc15;'>Query executed successfully. (0 rows returned)</p>";
+        return;
+      }
+
+      // Build a dynamic table from returned columns & values
+      const columns = res[0].columns;
+      const values = res[0].values;
+
+      let tableHtml = "<table><thead><tr>";
+      columns.forEach((col) => (tableHtml += `<th>${col}</th>`));
+      tableHtml += "</tr></thead><tbody>";
+
+      values.forEach((row) => {
+        tableHtml += "<tr>";
+        row.forEach((val) => (tableHtml += `<td>${val ?? "NULL"}</td>`));
+        tableHtml += "</tr>";
+      });
+      tableHtml += "</tbody></table>";
+
+      outputContainer.innerHTML = tableHtml;
+    } catch (err) {
+      // Show syntax or runtime SQL errors cleanly to the user
+      outputContainer.innerHTML = `<p style='color: #ef4444;'>SQL Error: ${err.message}</p>`;
+    }
+  });
+}
+
 // Run reader on page load
-initDatabaseReader();
+function main() {
+  initDatabaseReader();
+  startUpdateTimer();
+}
+
+main();
