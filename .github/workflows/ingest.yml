@@ -1,0 +1,40 @@
+# Sets the Name: Defines the display title that appears in the GitHub Actions dashboard UI.
+name: Hourly Ingestion Pipeline
+
+on:
+  schedule:
+    # see standard crontab formatting
+    - cron: "0 * * * *" # Executes every hour on the hour
+  workflow_dispatch: # Allow manual trigger from Github UI for testing
+
+# Sets Up the VM Environment: Defines a job named build-and-commit and requests a clean, GitHub-hosted Ubuntu Linux virtual machine.
+jobs:
+  build-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1 (Fetch Code): Uses the standard pre-built GitHub Action (actions/checkout@v4) to download your repository's code onto the runner VM so it can access your local files.
+      - name: Check out repo
+        uses: actions/checkout@v4
+      # Step 2 (Initialize Runtime): Installs Python 3.11 on the virtual machine environment.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3-11"
+      # Step 3 (Install Libraries): Executes shell commands to install requests, allowing your Python script to make API HTTP calls.
+      - name: Install dependencies
+        run: pip install requests
+      # Step 4 (Execute Ingestion): Runs your custom Python script (scripts/fetch_data.py), which calls the API, processes the raw telemetry, and updates the local SQLite database file at table_name.
+      - name: Run ETL script
+        run: python scripts/weather_etl.py
+      # Step 5 (Persist Data):
+      # Configures Git identity using the default GitHub Actions bot account.
+      # Stages the modified database file (git add).
+      # Commits the updated SQLite database with an automated timestamp (|| exit 0 prevents the workflow from crashing if no new data changed).
+      # Pushes the commit back to your GitHub repository, updating the database served live on GitHub Pages.
+      - name: Commit and Push updated DB
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/weather_table.DB
+          git commit -m "Automated Data Ingestion: $(date -u)" || exit
+          git push

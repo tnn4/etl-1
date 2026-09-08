@@ -1,0 +1,17 @@
+my-logistics-dashboard/
+├── .github/
+│   └── workflows/
+│       ├── etl_pipeline.yml     # Cron job: Fetches API data & builds Parquet/SQLite
+│       └── deploy.yml           # Deploys dist/ directory to GitHub Pages
+├── scripts/
+│   └── etl.py                   # Ingestion & normalization script
+├── public/
+│   └── data/                    # Generated DB artifact hosted on static CDN
+│       └── logistics_data.parquet
+├── src/
+│   ├── db/                      # WASM Initialization logic (Worker / WASM setup)
+│   ├── queries/                 # Pre-written analytics SQL statements
+│   ├── components/              # Chart widgets, KPI cards, and SQL editor UI
+│   └── App.tsx
+├── package.json
+└── vite.config.ts
