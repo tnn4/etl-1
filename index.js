@@ -177,6 +177,35 @@ function createMap(db) {
     `);
   }
   stmt.free();
+
+  // Query and display metro temperatures on the map
+  const tempQuery =
+    "SELECT city, temp_f, latitude, longitude FROM metro_temps WHERE temp_f IS NOT NULL;";
+  const tempStmt = db.prepare(tempQuery);
+
+  while (tempStmt.step()) {
+    const row = tempStmt.getAsObject();
+
+    // Create a custom CSS label marker for temperature
+    const tempIcon = L.divIcon({
+      className: "temp-badge",
+      html: `<div style="
+      background: #1e293b; 
+      color: #38bdf8; 
+      border: 1px solid #0284c7; 
+      padding: 2px 6px; 
+      border-radius: 4px; 
+      font-size: 11px; 
+      font-weight: bold;
+      white-space: nowrap;
+    ">${row.city}: ${row.temp_f}°F</div>`,
+      iconSize: [80, 20],
+      iconAnchor: [40, 10],
+    });
+
+    L.marker([row.latitude, row.longitude], { icon: tempIcon }).addTo(map);
+  }
+  tempStmt.free();
 }
 // Map helper function
 function getSeverityColor(severity) {
