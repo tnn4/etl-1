@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Weather Alerts - SQLite Reader</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 2rem;
+      }
+      h1 {
+        color: #38bdf8;
+      }
+      #status {
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: #facc15;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 1rem;
+        background: #1e293b;
+      }
+      th,
+      td {
+        border: 1px solid #334155;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #334155;
+        color: #38bdf8;
+      }
+      tr:nth-child(even) {
+        background-color: #0f172a;
+      }
+    </style>
+
+    <!-- Load official sql.js WASM library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  </head>
+  <body>
+    <h1>Live Weather Alerts Data</h1>
+    <div id="status">Initializing SQLite WASM engine...</div>
+
+    <table id="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Event</th>
+          <th>Severity</th>
+          <th>Area</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+
+    <script src="index.js"></script>
+  </body>
+</html>
