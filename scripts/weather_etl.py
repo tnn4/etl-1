@@ -1,6 +1,12 @@
+import os
 import json
 import sqlite3
 import requests
+
+# Ensure the directory exists on the runnder
+os.makedirs("public/data", exists_ok=True)
+
+TABLE_NAME="weather_table.db"
 
 # 1. Pull Open Weather/Transit Alert JSON
 URL = "https://api.weather.gov/alerts/active?status=actual&message_type=alert"
@@ -24,7 +30,7 @@ for feature in data.get("features", [])[:50]:  # Cap to top 50
     )
 
 # 3. Store into SQLite Database
-TABLE_NAME="weather_table.db"
+
 conn = sqlite3.connect(f"public/data/{TABLE_NAME}")
 cursor = conn.cursor()
 cursor.execute(
