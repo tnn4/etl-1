@@ -12,7 +12,8 @@ jobs:
   build-and-commit:
     runs-on: ubuntu-latest
     # ADD explicit write permission
-    contents: write
+    permissions:
+      contents: write
     steps:
       # Step 1 (Fetch Code): Uses the standard pre-built GitHub Action (actions/checkout@v4) to download your repository's code onto the runner VM so it can access your local files.
       - name: Check out repo
