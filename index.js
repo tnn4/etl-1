@@ -1,3 +1,4 @@
+const PAGE_SIZE = 100;
 async function initDatabaseReader() {
   const statusEl = document.getElementById("status");
   const tableBody = document.getElementById("table-body");
@@ -29,8 +30,7 @@ async function initDatabaseReader() {
     statusEl.innerText = "Database loaded successfully! Executing query...";
 
     // 4. Run standard SQL queries directly
-    const query =
-      "SELECT id, event, severity, area, timestamp FROM alerts LIMIT 20;";
+    const query = `SELECT id, event, severity, area, timestamp FROM alerts LIMIT ${PAGE_SIZE};`;
     const stmt = db.prepare(query);
 
     // 5. Render results into the DOM
@@ -53,6 +53,7 @@ async function initDatabaseReader() {
     statusEl.innerText = "Query Execution Complete!";
 
     enableCustomQueryConsole(db);
+    createMap(db);
   } catch (err) {
     console.error(err);
     statusEl.innerText = `Error: ${err.message}`;
@@ -145,9 +146,60 @@ function enableCustomQueryConsole(db) {
   });
 }
 
+function createMap(db) {
+  // 1. Initialize map centered on the US
+  const map = L.map("map").setView([39.8283, -98.5795], 4);
+
+  // Add OpenStreetMap tile layer
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+
+  // 2. Query lat/lng and severity from SQLite
+  const query =
+    "SELECT id, event, severity, area, latitude, longitude FROM alerts WHERE latitude IS NOT NULL;";
+  const stmt = db.prepare(query);
+
+  while (stmt.step()) {
+    const row = stmt.getAsObject();
+    const color = getSeverityColor(row.severity);
+
+    // 3. Render dynamic circle markers colored by severity
+    const marker = L.circleMarker([row.latitude, row.longitude], {
+      radius: 8,
+      fillColor: color,
+      color: "#000000", // Outer border color
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 0.85,
+    }).addTo(map);
+
+    // Attach interactive popup
+    marker.bindPopup(`
+      <strong>${row.event}</strong><br>
+      <b>Severity:</b> <span style="color:${color}; font-weight:bold;">${row.severity}</span><br>
+      <b>Area:</b> ${row.area}
+    `);
+  }
+  stmt.free();
+}
+// Map helper function
+function getSeverityColor(severity) {
+  switch ((severity || "").toLowerCase()) {
+    case "extreme":
+      return "#ef4444"; // Red
+    case "severe":
+      return "#f97316"; // Orange
+    case "moderate":
+      return "#eab308"; // Yellow
+    default:
+      return "#3b82f6"; // Blue default for minor/unknown alerts
+  }
+}
+
 // Run reader on page load
-function main() {
-  initDatabaseReader();
+async function main() {
+  await initDatabaseReader();
   startUpdateTimer();
 }
 
