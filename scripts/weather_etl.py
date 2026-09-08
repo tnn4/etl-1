@@ -4,7 +4,7 @@ import sqlite3
 import requests
 
 # Ensure the directory exists on the runnder
-os.makedirs("public/data", exists_ok=True)
+os.makedirs("public/data", exist_ok=True)
 
 TABLE_NAME="weather_table.db"
 
