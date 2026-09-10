@@ -7,8 +7,8 @@ on:
   workflow_dispatch: # Allows manual trigger from GitHub UI
   push:
     branches:
-      # - main # Deploys on direct code pushes to main
-      - test/etl-pipeline-refactor
+      - main # Deploys on direct code pushes to main
+      # - test/etl-pipeline-refactor
 
 permissions:
   contents: write # Required to commit and push updated SQLite DB
@@ -68,8 +68,7 @@ jobs:
         with:
           path: "." # Serves root directory containing index.html and public/data/
 
-
       # Step 8: Deploy static site live to GitHub Pages
-      # - name: Deploy to GitHub Pages
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
