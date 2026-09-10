@@ -31,3 +31,6 @@ Thumbs.db
 
 # notes/ archives
 Notes
+
+# We no longer track .db files as they are auto-generated from the workflow
+public/data/*.db
