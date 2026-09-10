@@ -1,0 +1,75 @@
+name: Scheduled Logistics ETL & Deployment Pipeline
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: "*/30 * * * *"
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+  push:
+    branches:
+      # - main # Deploys on direct code pushes to main
+      - test/etl-pipeline-refactor
+
+permissions:
+  contents: write # Required to commit and push updated SQLite DB
+  pages: write # Required to deploy to GitHub Pages
+  id-token: write # Required for GitHub Pages OIDC authentication
+
+# Prevent concurrent deployments from interrupting each other
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  run-etl-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python runtime
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Fast dependency resolution & caching using uv
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # Step 4: Execute orchestrator script (or fallback to python if uv is unused)
+      - name: Run Pipeline Orchestrator
+        run: |
+          uv run scripts/run_all_etl_pipelines.py || python scripts/weather_etl.py
+        env:
+          ENABLE_TXDOT_INGEST: "false" # Disabled on cloud runners to avoid WAF blocks
+
+      # Step 5: Commit modified SQLite DB back to repo (if changed)
+      - name: Commit and Push Updated SQLite Snapshot
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -f public/data/weather_table.db
+
+          # Only commit if changes exist; avoid failing on clean state
+          git diff --quiet && git diff --staged --quiet || (git commit -m "auto: update logistics SQLite snapshot [skip ci]" && git push)
+
+      # Step 6: Configure GitHub Pages environment
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # Step 7: Upload repository root (or public folder) as Pages artifact
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "." # Serves root directory containing index.html and public/data/
+
+
+      # Step 8: Deploy static site live to GitHub Pages
+      # - name: Deploy to GitHub Pages
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4

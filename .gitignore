@@ -28,3 +28,6 @@ Thumbs.db
 # Temporary & Local Logs
 *.log
 .tmp/
+
+# notes/ archives
+Notes

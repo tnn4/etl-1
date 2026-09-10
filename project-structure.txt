@@ -1,17 +1,15 @@
-my-logistics-dashboard/
-├── .github/
-│   └── workflows/
-│       ├── etl_pipeline.yml     # Cron job: Fetches API data & builds Parquet/SQLite
-│       └── deploy.yml           # Deploys dist/ directory to GitHub Pages
-├── scripts/
-│   └── etl.py                   # Ingestion & normalization script
-├── public/
-│   └── data/                    # Generated DB artifact hosted on static CDN
-│       └── logistics_data.parquet
-├── src/
-│   ├── db/                      # WASM Initialization logic (Worker / WASM setup)
-│   ├── queries/                 # Pre-written analytics SQL statements
-│   ├── components/              # Chart widgets, KPI cards, and SQL editor UI
-│   └── App.tsx
-├── package.json
-└── vite.config.ts
+.
+├── .github
+│   └── workflows
+│       └── ingest.yml           # Runs weather_etl.py (every 30m) & logistics_etl.py (daily)
+├── public
+│   └── data
+│       └── logistics_db.db      # Consolidated SQLite database file[cite: 4]
+├── scripts
+│   ├── weather_etl.py           # Ingests NWS API alerts & metro temperatures[cite: 3, 4]
+│   └── logistics_etl.py         # Parses/generates lane baselines, shipments, and hubs
+├── src
+│   ├── index.html               # Leaflet map, KPI summary cards, & query UI[cite: 1]
+│   └── index.js                 # WASM loader, polyline map layer, & interactive console[cite: 2]
+├── pyproject.toml               # Python dependencies (requests, sqlite3)[cite: 3, 4]
+└── README.md

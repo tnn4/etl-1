@@ -1,11 +1,33 @@
 const PAGE_SIZE = 100;
+
+// Practical operational risk query combining shipments, DOT road hazards, and NWS alerts
+const DEFAULT_OPERATIONAL_QUERY = `
+SELECT 
+    s.shipment_id AS 'Shipment ID',
+    s.carrier_name AS 'Carrier',
+    l.lane_id AS 'Lane',
+    s.status AS 'Shipment Status',
+    COALESCE(h.road_name, 'None') AS 'Highway Hazard',
+    COALESCE(h.description, 'No active road blockage') AS 'Road Details',
+    COALESCE(a.event, 'Clear') AS 'NWS Weather Alert'
+FROM active_shipments s
+JOIN surface_lanes l ON s.lane_id = l.lane_id
+LEFT JOIN highway_hazards h ON (
+    ABS(s.current_lat - h.latitude) < 0.5 
+    AND ABS(s.current_lng - h.longitude) < 0.5
+)
+LEFT JOIN alerts a ON (
+    ABS(s.current_lat - a.latitude) < 1.0 
+    AND ABS(s.current_lng - a.longitude) < 1.0
+);
+`.trim();
+
 async function initDatabaseReader() {
   const statusEl = document.getElementById("status");
-  const tableBody = document.getElementById("table-body");
 
   try {
     // 1. Initialize sql.js engine with WASM binary URL
-    statusEl.innerText = "Loading SQLite WebAssembly...";
+    statusEl.innerText = "Loading SQLite WebAssembly engine...";
     const initSqlJs = window.initSqlJs;
     const SQL = await initSqlJs({
       locateFile: (file) =>
@@ -22,43 +44,66 @@ async function initDatabaseReader() {
       );
     }
 
-    // Convert the HTTP response to a binary ArrayBuffer
     const buffer = await response.arrayBuffer();
 
     // 3. Instantiate the Database in browser memory
     const db = new SQL.Database(new Uint8Array(buffer));
-    statusEl.innerText = "Database loaded successfully! Executing query...";
+    statusEl.innerText = "Database loaded successfully!";
 
-    // 4. Run standard SQL queries directly
-    const query = `SELECT id, event, severity, area, timestamp FROM alerts LIMIT ${PAGE_SIZE};`;
-    const stmt = db.prepare(query);
-
-    // 5. Render results into the DOM
-    tableBody.innerHTML = "";
-    while (stmt.step()) {
-      const row = stmt.getAsObject();
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.id || "N/A"}</td>
-        <td><strong>${row.event || "Unknown"}</strong></td>
-        <td>${row.severity || "N/A"}</td>
-        <td>${row.area || "N/A"}</td>
-        <td>${row.timestamp || "N/A"}</td>
-      `;
-      tableBody.appendChild(tr);
-    }
-
-    // Clean up statement memory
-    stmt.free();
-    statusEl.innerText = "Query Execution Complete!";
-
+    // 4. Enable Interactive Query Console and execute default Operational Query
     enableCustomQueryConsole(db);
+    runQuery(db, DEFAULT_OPERATIONAL_QUERY);
+
+    // 5. Render Leaflet Map Layers
     createMap(db);
   } catch (err) {
     console.error(err);
     statusEl.innerText = `Error: ${err.message}`;
     statusEl.style.color = "#ef4444";
   }
+}
+
+function runQuery(db, userQuery) {
+  const outputContainer = document.getElementById("custom-output-container");
+
+  try {
+    const res = db.exec(userQuery);
+
+    if (res.length === 0) {
+      outputContainer.innerHTML =
+        "<p style='color: #facc15;'>Query executed successfully. (0 rows returned matching criteria)</p>";
+      return;
+    }
+
+    const columns = res[0].columns;
+    const values = res[0].values;
+
+    let tableHtml = "<table><thead><tr>";
+    columns.forEach((col) => (tableHtml += `<th>${col}</th>`));
+    tableHtml += "</tr></thead><tbody>";
+
+    values.forEach((row) => {
+      tableHtml += "<tr>";
+      row.forEach((val) => (tableHtml += `<td>${val ?? "NULL"}</td>`));
+      tableHtml += "</tr>";
+    });
+    tableHtml += "</tbody></table>";
+
+    outputContainer.innerHTML = tableHtml;
+  } catch (err) {
+    outputContainer.innerHTML = `<p style='color: #ef4444;'>SQL Error: ${err.message}</p>`;
+  }
+}
+
+function enableCustomQueryConsole(db) {
+  const btn = document.getElementById("run-query-btn");
+  const input = document.getElementById("sql-input");
+
+  btn.addEventListener("click", () => {
+    const userQuery = input.value.trim();
+    if (!userQuery) return;
+    runQuery(db, userQuery);
+  });
 }
 
 function startUpdateTimer(intervalMinutes = 30) {
@@ -68,26 +113,21 @@ function startUpdateTimer(intervalMinutes = 30) {
     const now = new Date();
     const nextUpdate = new Date(now);
 
-    // Calculate the next boundary based on intervalMinutes
     const currentMinutes = now.getMinutes();
     const remainder = currentMinutes % intervalMinutes;
     const minutesToNext = intervalMinutes - remainder;
 
-    // Set target time to the next interval boundary
     nextUpdate.setMinutes(currentMinutes + minutesToNext, 0, 0);
 
-    // Calculate remaining seconds
     const diffInSeconds = Math.floor((nextUpdate - now) / 1000);
     const minutes = Math.floor(diffInSeconds / 60);
     const seconds = diffInSeconds % 60;
 
-    // Format display with leading zeros
     const formattedMinutes = String(minutes).padStart(2, "0");
     const formattedSeconds = String(seconds).padStart(2, "0");
 
     timerEl.innerText = `${formattedMinutes}:${formattedSeconds}`;
 
-    // Auto-refresh page when timer expires
     if (diffInSeconds <= 0) {
       timerEl.innerText = "Refreshing feed...";
       setTimeout(() => location.reload(), 5000);
@@ -98,130 +138,132 @@ function startUpdateTimer(intervalMinutes = 30) {
   setInterval(updateClock, 1000);
 }
 
-// Function to run ad-hoc queries safely
-function enableCustomQueryConsole(db) {
-  const btn = document.getElementById("run-query-btn");
-  const input = document.getElementById("sql-input");
-  const outputContainer = document.getElementById("custom-output-container");
-
-  btn.addEventListener("click", () => {
-    const userQuery = input.value.trim();
-    if (!userQuery) return;
-
-    try {
-      // Execute the user's query against the in-memory database
-      const res = db.exec(userQuery);
-
-      if (res.length === 0) {
-        outputContainer.innerHTML =
-          "<p style='color: #facc15;'>Query executed successfully. (0 rows returned)</p>";
-        return;
-      }
-
-      // Build a dynamic table from returned columns & values
-      const columns = res[0].columns;
-      const values = res[0].values;
-
-      let tableHtml = "<table><thead><tr>";
-      columns.forEach((col) => (tableHtml += `<th>${col}</th>`));
-      tableHtml += "</tr></thead><tbody>";
-
-      values.forEach((row) => {
-        tableHtml += "<tr>";
-        row.forEach((val) => (tableHtml += `<td>${val ?? "NULL"}</td>`));
-        tableHtml += "</tr>";
-      });
-      tableHtml += "</tbody></table>";
-
-      outputContainer.innerHTML = tableHtml;
-    } catch (err) {
-      // Show syntax or runtime SQL errors cleanly to the user
-      outputContainer.innerHTML = `<p style='color: #ef4444;'>SQL Error: ${err.message}</p>`;
-    }
-  });
-}
-
 function createMap(db) {
-  // 1. Initialize map centered on the US
-  const map = L.map("map").setView([39.8283, -98.5795], 4);
-
-  // Add OpenStreetMap tile layer
+  const map = L.map("map").setView([32.7767, -96.797], 5); // Centered on Southern US / Texas freight hub
+  /*
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap contributors",
   }).addTo(map);
+  */
+  // Works identically on local dev servers AND live GitHub Pages
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 19,
+    },
+  ).addTo(map);
 
-  // 2. Query lat/lng and severity from SQLite
-  const query =
-    "SELECT id, event, severity, area, latitude, longitude FROM alerts WHERE latitude IS NOT NULL;";
-  const stmt = db.prepare(query);
+  // Layer 1: Weather Alerts (Circle Markers)
+  try {
+    const alertStmt = db.prepare(
+      "SELECT id, event, severity, area, latitude, longitude FROM alerts WHERE latitude IS NOT NULL;",
+    );
+    while (alertStmt.step()) {
+      const row = alertStmt.getAsObject();
+      const color = getSeverityColor(row.severity);
 
-  while (stmt.step()) {
-    const row = stmt.getAsObject();
-    const color = getSeverityColor(row.severity);
+      const marker = L.circleMarker([row.latitude, row.longitude], {
+        radius: 8,
+        fillColor: color,
+        color: "#000",
+        weight: 1,
+        fillOpacity: 0.7,
+      }).addTo(map);
 
-    // 3. Render dynamic circle markers colored by severity
-    const marker = L.circleMarker([row.latitude, row.longitude], {
-      radius: 8,
-      fillColor: color,
-      color: "#000000", // Outer border color
-      weight: 1,
-      opacity: 1,
-      fillOpacity: 0.85,
-    }).addTo(map);
-
-    // Attach interactive popup
-    marker.bindPopup(`
-      <strong>${row.event}</strong><br>
-      <b>Severity:</b> <span style="color:${color}; font-weight:bold;">${row.severity}</span><br>
-      <b>Area:</b> ${row.area}
-    `);
+      marker.bindPopup(`
+        <strong>Weather Alert: ${row.event}</strong><br>
+        <b>Severity:</b> <span style="color:${color}; font-weight:bold;">${row.severity}</span><br>
+        <b>Area:</b> ${row.area}
+      `);
+    }
+    alertStmt.free();
+  } catch (err) {
+    console.warn("Alerts table query skipped:", err.message);
   }
-  stmt.free();
 
-  // Query and display metro temperatures on the map
-  const tempQuery =
-    "SELECT city, temp_f, latitude, longitude FROM metro_temps WHERE temp_f IS NOT NULL;";
-  const tempStmt = db.prepare(tempQuery);
+  // Layer 2: Live TxDOT Highway Hazards (Triangle/Square markers)
+  try {
+    const hazardStmt = db.prepare(
+      "SELECT hazard_id, road_name, event_type, description, latitude, longitude FROM highway_hazards;",
+    );
+    while (hazardStmt.step()) {
+      const row = hazardStmt.getAsObject();
 
-  while (tempStmt.step()) {
-    const row = tempStmt.getAsObject();
+      const hazardMarker = L.circleMarker([row.latitude, row.longitude], {
+        radius: 6,
+        fillColor: "#ef4444",
+        color: "#ffffff",
+        weight: 2,
+        fillOpacity: 0.9,
+      }).addTo(map);
 
-    // Create a custom CSS label marker for temperature
-    const tempIcon = L.divIcon({
-      className: "temp-badge",
-      html: `<div style="
-      background: #1e293b; 
-      color: #38bdf8; 
-      border: 1px solid #0284c7; 
-      padding: 2px 6px; 
-      border-radius: 4px; 
-      font-size: 11px; 
-      font-weight: bold;
-      white-space: nowrap;
-    ">${row.city}: ${row.temp_f}°F</div>`,
-      iconSize: [80, 20],
-      iconAnchor: [40, 10],
-    });
-
-    L.marker([row.latitude, row.longitude], { icon: tempIcon }).addTo(map);
+      hazardMarker.bindPopup(`
+        <strong style="color: #ef4444;">🚧 Road Hazard: ${row.road_name}</strong><br>
+        <b>Type:</b> ${row.event_type}<br>
+        <b>Details:</b> ${row.description}
+      `);
+    }
+    hazardStmt.free();
+  } catch (err) {
+    console.warn("Highway hazards query skipped:", err.message);
   }
-  tempStmt.free();
+
+  // Layer 3: Active Freight Shipments (Blue Markers)
+  try {
+    const shipmentStmt = db.prepare(
+      "SELECT shipment_id, carrier_name, current_lat, current_lng, status FROM active_shipments;",
+    );
+    while (shipmentStmt.step()) {
+      const row = shipmentStmt.getAsObject();
+
+      const truckIcon = L.divIcon({
+        className: "truck-badge",
+        html: `<div style="
+          background: #0284c7; 
+          color: white; 
+          padding: 2px 5px; 
+          border-radius: 3px; 
+          font-size: 10px; 
+          font-weight: bold;
+          border: 1px solid #ffffff;
+          white-space: nowrap;
+        ">🚛 ${row.shipment_id}</div>`,
+        iconSize: [70, 20],
+        iconAnchor: [35, 10],
+      });
+
+      const shipmentMarker = L.marker([row.current_lat, row.current_lng], {
+        icon: truckIcon,
+      }).addTo(map);
+
+      shipmentMarker.bindPopup(`
+        <strong>Shipment: ${row.shipment_id}</strong><br>
+        <b>Carrier:</b> ${row.carrier_name}<br>
+        <b>Status:</b> ${row.status}
+      `);
+    }
+    shipmentStmt.free();
+  } catch (err) {
+    console.warn("Active shipments query skipped:", err.message);
+  }
 }
-// Map helper function
+
 function getSeverityColor(severity) {
   switch ((severity || "").toLowerCase()) {
     case "extreme":
-      return "#ef4444"; // Red
+      return "#ef4444";
     case "severe":
-      return "#f97316"; // Orange
+      return "#f97316";
     case "moderate":
-      return "#eab308"; // Yellow
+      return "#eab308";
     default:
-      return "#3b82f6"; // Blue default for minor/unknown alerts
+      return "#3b82f6";
   }
 }
 
-// Run reader on page load
 async function main() {
   await initDatabaseReader();
   startUpdateTimer();

@@ -1,6 +1,12 @@
 [project]
-name="weather-etl"
+name="logistics-etl"
 version="0.1.0"
 dependencies=[
     "requests>=2.31.0"
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-playwright>=0.7.1",
 ]

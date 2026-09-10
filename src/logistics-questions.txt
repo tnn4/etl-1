@@ -1,0 +1,9 @@
+operational risk management and decision-support portal.
+
+When severe weather hits, a logistics worker needs to immediately answer three questions:
+
+    Which of our active shipments or lanes are currently in the hazard zone?
+
+    What is the financial and SLA risk (delayed cargo, rerouting costs)?
+
+    What immediate mitigation action should be taken?

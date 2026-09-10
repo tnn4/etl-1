@@ -1,4 +1,12 @@
 .
+├── index.html
+├── index.js
+├── notes
+│   ├── etl-vs-ingest-yml.md
+│   ├── etl.yml
+│   ├── how-to-build-useful-tool.md
+│   ├── how-to-use-api-key-with-github-pages.md
+│   └── ingest.yml
 ├── project-structure.txt
 ├── public
 │   └── data
@@ -6,11 +14,14 @@
 ├── pyproject.toml
 ├── README.md
 ├── scripts
+│   ├── ingest_txdot.py
+│   ├── logistics_etl.py
+│   ├── run_all_etl_pipelines.py
 │   └── weather_etl.py
 ├── src
-│   ├── index.html
-│   └── index.js
+│   ├── etl-architecture.txt
+│   └── logistics-questions.txt
 ├── tree.txt
 └── uv.lock
 
-5 directories, 9 files
+6 directories, 19 files

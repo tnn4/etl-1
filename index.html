@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Weather Alerts - SQLite Reader</title>
+    <title>Logistics & Weather Intelligence Operations</title>
     <style>
       body {
         font-family: system-ui, sans-serif;
@@ -10,7 +10,8 @@
         color: #f8fafc;
         padding: 2rem;
       }
-      h1 {
+      h1,
+      h2 {
         color: #38bdf8;
       }
       #status {
@@ -37,6 +38,26 @@
       tr:nth-child(even) {
         background-color: #0f172a;
       }
+      .console-card {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #1e293b;
+        border-radius: 8px;
+        border: 1px solid #334155;
+      }
+      button {
+        margin-top: 8px;
+        padding: 8px 16px;
+        background: #0284c7;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      button:hover {
+        background: #0369a1;
+      }
     </style>
 
     <!-- Leaflet CSS & JS -->
@@ -46,24 +67,16 @@
     />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Container for the Map -->
-    <div
-      id="map"
-      style="
-        height: 400px;
-        width: 100%;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-      "
-    ></div>
-
     <!-- Load official sql.js WASM library from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
   </head>
   <body>
-    <h1>Weather Alerts</h1>
-    Source:
-    <a href="https://api.weather.gov/alerts">https://api.weather.gov/alerts</a>
+    <h1>Logistics & Weather Operational Risk Desk</h1>
+    <p style="color: #94a3b8; max-width: 800px">
+      Correlating live TxDOT road hazards, NWS weather alerts, and freight
+      carrier positions in real time via SQLite WASM.
+    </p>
+
     <!-- Next Refresh Timer Display -->
     <div
       id="timer-container"
@@ -75,6 +88,7 @@
         font-family: monospace;
         display: inline-block;
         margin-bottom: 1rem;
+        border: 1px solid #334155;
       "
     >
       ⏱️ Next scheduled data refresh in:
@@ -82,64 +96,69 @@
         >--:--</span
       >
     </div>
+
     <div id="status">Initializing SQLite WASM engine...</div>
 
-    <table id="data-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Event</th>
-          <th>Severity</th>
-          <th>Area</th>
-          <th>Timestamp</th>
-        </tr>
-      </thead>
+    <!-- Container for the Map -->
+    <div
+      id="map"
+      style="
+        height: 400px;
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #334155;
+      "
+    ></div>
 
-      <!-- Custom SQL Query Box -->
-      <h2>Interactive SQL Console</h2>
-      <div
+    <!-- Interactive SQL Console preloaded with Operational Risk Query -->
+    <h2>Interactive Logistics SQL Console</h2>
+    <div class="console-card">
+      <label
+        for="sql-input"
         style="
-          margin-top: 2rem;
-          padding: 1rem;
-          background: #1e293b;
-          border-radius: 8px;
+          display: block;
+          font-size: 0.875rem;
+          color: #94a3b8;
+          margin-bottom: 6px;
         "
       >
-        <textarea
-          id="sql-input"
-          rows="3"
-          style="
-            width: 100%;
-            background: #0f172a;
-            color: #38bdf8;
-            padding: 10px;
-            font-family: monospace;
-          "
-          placeholder="SELECT * FROM alerts WHERE severity = 'Severe';"
-        ></textarea>
-        <br />
-        <button
-          id="run-query-btn"
-          style="
-            margin-top: 8px;
-            padding: 8px 16px;
-            background: #0284c7;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 4px;
-          "
-        >
-          Execute Query
-        </button>
-      </div>
+        Run custom SQLite queries across <code>active_shipments</code>,
+        <code>highway_hazards</code>, and <code>alerts</code>:
+      </label>
+      <textarea
+        id="sql-input"
+        rows="10"
+        style="
+          width: 100%;
+          background: #0f172a;
+          color: #38bdf8;
+          padding: 12px;
+          font-family: monospace;
+          border: 1px solid #334155;
+          border-radius: 4px;
+          box-sizing: border-box;
+        "
+      >
+SELECT 
+    s.shipment_id,
+    s.carrier_name,
+    s.lane_id,
+    s.risk_status,
+    s.detected_threat,
+    s.threat_severity
+FROM active_shipments s
+ORDER BY CASE WHEN s.risk_status != 'CLEAR' THEN 0 ELSE 1 END;</textarea
+      >
+      <br />
+      <button id="run-query-btn">Execute Operational Query</button>
+    </div>
 
-      <!-- Output Container for Custom Queries -->
-      <h2>Table alerts</h2>
-      <div id="custom-output-container" style="margin-top: 1rem"></div>
-
-      <tbody id="table-body"></tbody>
-    </table>
+    <!-- Query Output View -->
+    <h2 style="margin-top: 2rem">Operational Risk Analysis</h2>
+    <div id="custom-output-container" style="margin-top: 1rem">
+      <p style="color: #94a3b8">Loading risk summary...</p>
+    </div>
 
     <script src="index.js"></script>
   </body>
